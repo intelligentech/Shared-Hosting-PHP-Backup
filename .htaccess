@@ -1,0 +1,117 @@
+# ================================================================================
+# BACKUP SCRIPT SECURITY CONFIGURATION
+# ================================================================================
+# 
+# This .htaccess file protects the backup script directory from unauthorized access.
+# Place this file in the same directory as backup.php
+#
+# IMPORTANT: This configuration is for Apache web servers only.
+# If using Nginx, implement equivalent rules in your server configuration.
+# ================================================================================
+
+# Disable directory browsing
+Options -Indexes
+
+# Protect all files in this directory
+<FilesMatch ".*">
+    # Apache 2.4+
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    
+    # Apache 2.2
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Allow access only to backup.php and only from localhost
+<FilesMatch "^backup\.php$">
+    # Apache 2.4+
+    <IfModule mod_authz_core.c>
+        # Allow localhost and local IP addresses
+        Require local
+        # Optionally, add specific IP addresses you want to allow:
+        # Require ip 203.0.113.0/24
+    </IfModule>
+    
+    # Apache 2.2
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+        Allow from 127.0.0.1
+        Allow from ::1
+        Allow from localhost
+        # Optionally, add specific IP addresses:
+        # Allow from 203.0.113.0/24
+    </IfModule>
+</FilesMatch>
+
+# Protect sensitive files
+<FilesMatch "\.(lock|log|sql|gz)$">
+    # Apache 2.4+
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    
+    # Apache 2.2
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Disable PHP execution in backup directory (security measure)
+# Uncomment if you want to prevent PHP execution except for backup.php
+# <FilesMatch "\.php$">
+#     <FilesMatch "^backup\.php$">
+#         SetHandler application/x-httpd-php
+#     </FilesMatch>
+# </FilesMatch>
+
+# Prevent access to hidden files (.htaccess, .git, etc.)
+<FilesMatch "^\.">
+    # Apache 2.4+
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    
+    # Apache 2.2
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Additional security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
+</IfModule>
+
+# ================================================================================
+# ALTERNATIVE CONFIGURATION: Allow from Specific IPs Only
+# ================================================================================
+# If you need to access the backup script from remote locations, uncomment
+# the section below and add your trusted IP addresses:
+#
+# <FilesMatch "^backup\.php$">
+#     <IfModule mod_authz_core.c>
+#         Require ip 127.0.0.1 ::1
+#         Require ip 203.0.113.0/24    # Add your office IP range
+#         Require ip 198.51.100.50     # Add your home IP
+#     </IfModule>
+#     
+#     <IfModule !mod_authz_core.c>
+#         Order deny,allow
+#         Deny from all
+#         Allow from 127.0.0.1
+#         Allow from ::1
+#         Allow from 203.0.113.0/24    # Add your office IP range
+#         Allow from 198.51.100.50     # Add your home IP
+#     </IfModule>
+# </FilesMatch>
+# ================================================================================
