@@ -1,4 +1,4 @@
-# 🔐 Enterprise-Grade PHP Backup Automation
+# 🔐 Pure PHP Shared Hosting Backup Automation
 
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
