@@ -153,6 +153,26 @@ $config = [
     // Security
     'web_access_token' => 'CHANGE_THIS_SECRET_TOKEN_MIN_32_CHARS',  // CHANGE_THIS: Strong random token
     
+    // ⚠️ CRITICAL SECURITY WARNINGS ⚠️
+    // 1. CREDENTIALS: Database and FTP passwords are stored in PLAINTEXT in this file
+    //    - Use file permissions: chmod 600 backup.php (owner read/write only)
+    //    - Store outside web root: /home/username/scripts/ NOT /public_html/
+    //    - Use environment variables (see getenv() calls below) for production
+    //    - NEVER commit this file to version control with real credentials
+    // 
+    // 2. ENCRYPTION: Backups are stored UNENCRYPTED on FTP server
+    //    - Enable FTPS (set ftp_use_ssl = true) for encrypted transmission
+    //    - Consider encrypting backup files before upload (see encryption section below)
+    //    - FTP server compromise = all backup data exposed in plaintext
+    // 
+    // 3. INCREMENTAL BACKUPS: This script creates FULL backups every run
+    //    - Large sites (>5GB) may timeout and consume significant bandwidth
+    //    - For large sites, consider:
+    //      a) Separate database and file backups (run on different schedules)
+    //      b) Use rsync for incremental file transfers to FTP
+    //      c) Implement file change detection (hash comparison with previous backup)
+    //      d) Exclude large static assets that don't change (videos, images)
+    
     // Exclusion Patterns (regex) - Files/directories matching these won't be backed up
     'exclude_patterns' => [
         '#/cache/#i',
@@ -167,6 +187,11 @@ $config = [
         '#/Thumbs\.db$#i',
         // Add custom patterns here
     ],
+    // NOTE: Exclusion patterns use PHP regex syntax. Common patterns:
+    // - Exclude all .log files: '#\.log$#i'
+    // - Exclude uploads folder: '#/uploads/#i'
+    // - Exclude specific file: '#/config\.local\.php$#'
+    // - Exclude by extension: '#\.(mp4|avi|mov)$#i' (large video files)
     
     // Advanced Options
     'debug_mode' => false,  // Enable verbose debug logging
@@ -184,6 +209,24 @@ $config['ftp_host'] = getenv('FTP_HOST') ?: $config['ftp_host'];
 $config['ftp_user'] = getenv('FTP_USER') ?: $config['ftp_user'];
 $config['ftp_pass'] = getenv('FTP_PASSWORD') ?: $config['ftp_pass'];
 
+// ==================== OPTIONAL: BACKUP ENCRYPTION ====================
+// 
+// To encrypt backups before FTP upload, add this function and call it after ZIP creation:
+// 
+// function encryptBackup($zipFile, $password) {
+//     $encryptedFile = $zipFile . '.enc';
+//     $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+//     $encrypted = openssl_encrypt(file_get_contents($zipFile), 'aes-256-cbc', $password, 0, $iv);
+//     file_put_contents($encryptedFile, $iv . $encrypted);
+//     unlink($zipFile); // Remove unencrypted version
+//     return $encryptedFile;
+// }
+// 
+// Then call before FTP upload:
+// $backupZipPath = encryptBackup($backupZipPath, 'YOUR_STRONG_ENCRYPTION_PASSWORD');
+// 
+// To decrypt: Extract IV (first 16 bytes), decrypt remainder with same password
+// 
 // ==================== END CONFIGURATION ====================
 
 // ==================== INITIALIZATION ====================
@@ -662,8 +705,17 @@ function exportDatabase($dbName) {
                             $values[] = 'NULL';
                         } elseif (is_string($row[$i]) && strpos($row[$i], "\0") !== false) {
                             // NUL byte detected—use HEX encoding for safe export/import
-                            $values[] = "0x" . bin2hex($row[$i]);
-                            writeLog('DEBUG', "NUL byte detected in table $tableName, using HEX encoding");
+                            $hexEncoded = bin2hex($row[$i]);
+                            
+                            // CRITICAL: Validate HEX encoding reversibility
+                            $decoded = @hex2bin($hexEncoded);
+                            if ($decoded !== $row[$i]) {
+                                writeLog('ERROR', "HEX encoding validation failed for table $tableName - data may be corrupted");
+                                throw new Exception("NUL byte HEX encoding validation failed - data integrity at risk");
+                            }
+                            
+                            $values[] = "0x" . $hexEncoded;
+                            writeLog('DEBUG', "NUL byte detected in table $tableName, using HEX encoding (validated)");
                         } else {
                             $values[] = "'" . $conn->real_escape_string($row[$i]) . "'";
                         }
