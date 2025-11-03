@@ -1211,9 +1211,9 @@ Contact: [Open a discussion](https://github.com/intelligentech/Shared-Hosting-PH
 
 ## 📊 Changelog
 
-### Version 1.0.0 (2024-11-03)
+### Version 1.2.8 (2024-11-03)
 
-**Initial Production Release**
+**Initial Public Production Release**
 
 ✨ **Features:**
 - Automatic database discovery and export
